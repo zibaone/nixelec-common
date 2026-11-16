@@ -16,9 +16,14 @@ flotte, aucune IP, aucun secret, aucun blob non redistribuable.
 | Module | Contrat | Fourni par la couche carte |
 |---|---|---|
 | `wifi-client` | `nixelec.wifiClient` : source des réseaux (`networksFile` prioritaire, sinon `ssid` + `pskFile`), rendu de `/run/wpa_supplicant.conf`, unité `wpa-supplicant-*`, power-save après association | pilote, firmware, NVRAM, nom d'interface stable |
+| `ir` | tables `remotes/*.toml`, fusion, gardes d'éval (conflit, override orphelin), keymap, règle udev | récepteur (`sunxi-ir`, `meson-ir`, `gpio_ir_recv`) et `nixelec.ir.inputName` |
+| `front-panel` | afficheur FD650/FD655 bit-bang, unité `oneshot` sans dépendance de boot | `chip`, `clk`, `dat`, `pushPull`, `leftToRight`, `text` |
+| `emmc-root` | `fileSystems."/"` par étiquette, assertions ext4 (16 caractères, pas `nixos`), bootloader-agnostique | `rootLabel`, `extraPackages` éventuels |
 
-Les autres modules (`ir`, `front-panel`, `emmc-root`, overlay DT) suivent la même
-règle et sont ajoutés au fil de la migration, un commit par module.
+Le dépôt expose aussi `flake.lib { pkgs }` → `mkDtbo { name, dts }`, qui compile
+un overlay DT en `.dtbo` avec `dtc` seul : pas de `kernel.dev`, donc pas de
+recompilation du noyau. La couche carte enregistre le `.dtbo` dans son propre
+`hardware.nixbian.overlays`.
 
 ## Utilisation
 
