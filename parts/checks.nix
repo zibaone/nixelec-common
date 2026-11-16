@@ -118,6 +118,21 @@
               test -n "$drv"
               touch $out
             '';
+
+        dt-overlay = (self.lib { inherit pkgs; }).mkDtbo {
+          name = "test-overlay";
+          dts = ''
+            /dts-v1/;
+            /plugin/;
+            / {
+              compatible = "nixelec,test";
+              fragment@0 {
+                target-path = "/";
+                __overlay__ { };
+              };
+            };
+          '';
+        };
       };
     };
 }

@@ -19,5 +19,10 @@
         ./parts/packages.nix
         ./parts/checks.nix
       ];
+
+      # Mécanisme commun de compilation d'un overlay DT en .dtbo. Les couches
+      # carte l'utilisent pour activer un nœud (ir, etc.) sans recompiler le
+      # noyau ; aucune option nixbian n'entre dans ce dépôt.
+      flake.lib = { pkgs }: import ./lib/dt-overlay.nix { inherit pkgs; };
     };
 }
