@@ -13,5 +13,8 @@
     # Afficheur façade FD650/FD655 : protocole bit-bang, chip/clk/dat en
     # données de carte.
     front-panel = ../modules/front-panel.nix;
+
+    # Racine sur étiquette, bootloader-agnostique (extlinux ou U-Boot vendor).
+    emmc-root = ../modules/emmc-root.nix;
   };
 }
