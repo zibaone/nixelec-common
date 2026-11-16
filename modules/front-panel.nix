@@ -144,7 +144,7 @@ in
         RemainAfterExit = true;
       };
       script = ''
-        ${fd6xx}/bin/fd6xx ${lib.escapeShellArgs args} || true
+        ${fd6xx}/bin/fd6xx ${lib.escapeShellArgs args}
       '';
     };
   };
