@@ -139,6 +139,10 @@ in
     systemd.services.front-panel = {
       description = "Afficheur façade 7 segments (FD650/FD655)";
       wantedBy = [ "multi-user.target" ];
+      # Le PIO doit être créé avant le bit-bang ; sur la H96, le service
+      # lancé trop tôt laissait l'écran éteint alors que `fd6xx` sortait 0.
+      after = [ "dev-gpiochip1.device" ];
+      wants = [ "dev-gpiochip1.device" ];
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
