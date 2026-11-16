@@ -9,5 +9,9 @@
     # Récepteur IR : tables, fusion, gardes d'éval, keymap et udev. Aucun
     # récepteur : la couche carte fournit sunxi-ir, meson-ir ou gpio_ir_recv.
     ir = ../modules/ir.nix;
+
+    # Afficheur façade FD650/FD655 : protocole bit-bang, chip/clk/dat en
+    # données de carte.
+    front-panel = ../modules/front-panel.nix;
   };
 }

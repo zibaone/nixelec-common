@@ -68,6 +68,33 @@
               test -n "$drv"
               touch $out
             '';
+
+        eval-front-panel =
+          let
+            example = inputs.nixpkgs.lib.nixosSystem {
+              system = "x86_64-linux";
+              modules = [
+                self.nixosModules.front-panel
+                ../examples/front-panel.nix
+                {
+                  system.stateVersion = "26.05";
+                  boot.loader.grub.enable = false;
+                  fileSystems."/" = {
+                    device = "/dev/null";
+                    fsType = "ext4";
+                  };
+                }
+              ];
+            };
+          in
+          pkgs.runCommand "check-eval-front-panel"
+            {
+              drv = builtins.unsafeDiscardStringContext example.config.system.build.toplevel.drvPath;
+            }
+            ''
+              test -n "$drv"
+              touch $out
+            '';
       };
     };
 }

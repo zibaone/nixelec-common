@@ -16,6 +16,7 @@
 
       imports = [
         ./parts/modules.nix
+        ./parts/packages.nix
         ./parts/checks.nix
       ];
     };
