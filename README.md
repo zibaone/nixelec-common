@@ -11,6 +11,11 @@ Une couche appareil ne réimplémente pas un contrat commun : elle apporte le
 pilote, le firmware et les données de sa carte. Ce dépôt ne contient aucun nom de
 flotte, aucune IP, aucun secret, aucun blob non redistribuable.
 
+Aucun patch kernel ici : la composition et le build des noyaux appartiennent aux
+couches famille (`nixelec-sunxi64`, `nixelec-meson64`), qui appliquent l'export
+Armbian de `nixbian` et leurs propres patches (décision B, 2026-11-16). Ce dépôt
+ne porte que des contrats NixOS.
+
 ## Modules
 
 | Module | Contrat | Fourni par la couche carte |
