@@ -139,13 +139,16 @@ in
     systemd.services.front-panel = {
       description = "Afficheur façade 7 segments (FD650/FD655)";
       wantedBy = [ "multi-user.target" ];
-      # Le PIO doit être créé avant le bit-bang ; sur la H96, le service
+      # Le PIO doit être prêt avant le bit-bang ; sur la H96, le service
       # lancé trop tôt laissait l'écran éteint alors que `fd6xx` sortait 0.
-      after = [ "dev-gpiochip1.device" ];
-      wants = [ "dev-gpiochip1.device" ];
+      # `dev-gpiochip1.device` n'est jamais « active » : un chardev GPIO n'est
+      # pas une unité de périphérique systemd, d'où 90 s de timeout à chaque
+      # boot (mesuré sur Transpeed le 2026-11-18). On attend l'événement udev
+      # du nœud, pas une unité qui n'existera jamais.
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
+        ExecStartPre = "${pkgs.systemd}/bin/udevadm wait --timeout=120 /dev/gpiochip1";
       };
       script = ''
         ${fd6xx}/bin/fd6xx ${lib.escapeShellArgs args}
