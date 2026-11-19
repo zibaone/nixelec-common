@@ -83,5 +83,14 @@ in
     ];
 
     environment.systemPackages = cfg.extraPackages;
+
+    # `nixbian` (nix/parts/nixos-module.nix) pose `root=LABEL=nixos` pour les
+    # images SD. Sur une machine installée, l'étiquette est `cfg.rootLabel` :
+    # on ajoute donc notre `root=` en **dernier** (`mkAfter`). Le noyau retient
+    # la dernière occurrence — `root_dev_setup` écrase la valeur précédente —
+    # et le `root=` des images reste inoffensif au lieu de monter la mauvaise
+    # partition (symptôme mesuré : `stage 2 init script (/mnt-root//init) not
+    # found` sur la Transpeed, dont la racine est `nixelec-8k618`).
+    boot.kernelParams = lib.mkAfter [ "root=LABEL=${cfg.rootLabel}" ];
   };
 }
