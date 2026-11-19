@@ -16,5 +16,10 @@
 
     # Racine sur étiquette, bootloader-agnostique (extlinux ou U-Boot vendor).
     emmc-root = ../modules/emmc-root.nix;
+
+    # Contrat « ce que le VPU ne décode pas » : la couche famille ou carte le
+    # remplit à partir d'une mesure, le profil kiosque le traduit en réglage
+    # sendtokodi et en filtre yt-dlp.
+    video-codecs = ../modules/video-codecs.nix;
   };
 }
