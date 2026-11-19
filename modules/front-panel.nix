@@ -151,6 +151,15 @@ in
         ExecStartPre = "${pkgs.systemd}/bin/udevadm wait --timeout=120 /dev/gpiochip1";
       };
       script = ''
+        # Deux passes. La première allume l'afficheur, mais le bring-up de la
+        # sortie vidéo (TCON/DE puis HDMI) réinitialise le banc PIO quelques
+        # secondes plus tard et l'écran s'éteint sans que rien ne le signale :
+        # mesuré sur la H96 le 2026-11-19, service « Finished » à 11:39:34,
+        # dalle noire, et un `fd6xx write H96` manuel la rallume. La seconde
+        # passe, après stabilisation, couvre cette fenêtre. `fd6xx` est
+        # idempotent (il réécrit le registre complet).
+        ${fd6xx}/bin/fd6xx ${lib.escapeShellArgs args}
+        sleep 8
         ${fd6xx}/bin/fd6xx ${lib.escapeShellArgs args}
       '';
     };
