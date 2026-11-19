@@ -5,6 +5,23 @@
 
 {
   options.nixelec.video = {
+    autoDetect = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Ask the device what its video decoder really supports, at boot, instead
+        of trusting the list declared by the family or board.
+
+        The platform probes the V4L2 decoder (`v4l2-ctl --list-formats-out`) and
+        writes the codecs that are *not* exposed into the consumer's setting
+        (sendtokodi's `avoid_video_codecs`). When the probe fails, the declared
+        list stays in force and the failure is logged — no silent fallback.
+
+        Enabled by default: the probe is local, cheap, and cannot block the boot.
+        Set to false to pin the declared list exactly.
+      '';
+    };
+
     unsupportedCodecs = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
