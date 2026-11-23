@@ -22,7 +22,7 @@ ne porte que des contrats NixOS.
 |---|---|---|
 | `wifi-client` | `nixelec.wifiClient` : source des réseaux (`networksFile` prioritaire, sinon `ssid` + `pskFile`), rendu de `/run/wpa_supplicant.conf`, unité `wpa-supplicant-*`, power-save après association | pilote, firmware, NVRAM, nom d'interface stable |
 | `ir` | tables `remotes/*.toml`, fusion, gardes d'éval (conflit, override orphelin), keymap, règle udev | récepteur (`sunxi-ir`, `meson-ir`, `gpio_ir_recv`) et `nixelec.ir.inputName` |
-| `front-panel` | afficheur FD650/FD655 bit-bang, unité `oneshot` sans dépendance de boot | `chip`, `clk`, `dat`, `pushPull`, `leftToRight`, `text` |
+| `front-panel` | afficheur FD650/FD655 bit-bang, unité `oneshot` sans dépendance de boot, rendu complet texte + icônes nommées, état eth/wifi optionnel | `chip`, `clk`, `dat`, `pushPull`, `leftToRight`, `text`, `layout`, `icons`, `status` |
 | `emmc-root` | `fileSystems."/"` par étiquette, assertions ext4 (16 caractères, pas `nixos`), bootloader-agnostique | `rootLabel`, `extraPackages` éventuels |
 
 Le dépôt expose aussi `flake.lib { pkgs }` → `mkDtbo { name, dts }`, qui compile
