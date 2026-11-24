@@ -56,35 +56,54 @@ let
   # Rendu d'état : le script part des icônes statiques, ajoute eth/wifi selon
   # l'état réseau, puis reconstruit une commande `show` complète. Toute icône
   # du profil non active est explicitement éteinte.
-  statusScript =
-    let
-      iconCase = lib.concatStrings (
-        lib.mapAttrsToList (name: icon: ''
-          case " $active " in
-            *" ${name} "*) set -- "$@" --bit "${toString icon.address}:${toString icon.mask}" ;;
-            *) set -- "$@" --clear "${toString icon.address}:${toString icon.mask}" ;;
-          esac
-        '') cfg.layout.icons
-      );
-      ethCheck = lib.optionalString (cfg.status.ethernetIcon != null) ''
-        if [ "$(cat /sys/class/net/${cfg.status.ethernetInterface}/operstate 2>/dev/null)" = "up" ]; then
-          active="$active ${cfg.status.ethernetIcon}"
-        fi
-      '';
-      wifiCheck = lib.optionalString (cfg.status.wifiIcon != null) ''
-        if ${pkgs.iw}/bin/iw dev ${cfg.status.wifiInterface} link 2>/dev/null | grep -q '^Connected to'; then
-          active="$active ${cfg.status.wifiIcon}"
-        fi
-      '';
-    in
-    ''
+  iconCase = lib.concatStrings (
+    lib.mapAttrsToList (name: icon: ''
+      case " $active " in
+        *" ${name} "*) set -- "$@" --bit "${toString icon.address}:${toString icon.mask}" ;;
+        *) set -- "$@" --clear "${toString icon.address}:${toString icon.mask}" ;;
+      esac
+    '') cfg.layout.icons
+  );
+  ethCheck = lib.optionalString (cfg.status.ethernetIcon != null) ''
+    if [ "$(cat /sys/class/net/${cfg.status.ethernetInterface}/operstate 2>/dev/null)" = "up" ]; then
+      active="$active ${cfg.status.ethernetIcon}"
+    fi
+  '';
+  wifiCheck = lib.optionalString (cfg.status.wifiIcon != null) ''
+    if ${pkgs.iw}/bin/iw dev ${cfg.status.wifiInterface} link 2>/dev/null | grep -q '^Connected to'; then
+      active="$active ${cfg.status.wifiIcon}"
+    fi
+  '';
+
+  statusScript = ''
+    active="${lib.concatStringsSep " " cfg.icons}"
+    ${ethCheck}
+    ${wifiCheck}
+    set -- show --text ${lib.escapeShellArg cfg.text}
+    ${iconCase}
+    ${fd6xx}/bin/fd6xx ${lib.escapeShellArgs transportArgs} "$@" || true
+  '';
+
+  # Horloge : HHMM sur quatre chiffres, colon clignotant à 1 Hz (secondes
+  # paires), avec les mêmes icônes d'état que le rendu statique. La boucle
+  # relit l'heure à chaque tour : un saut d'horloge (suspend/resume, NTP) est
+  # corrigé au tour suivant, sans état interne.
+  clockScript = ''
+    while :; do
       active="${lib.concatStringsSep " " cfg.icons}"
       ${ethCheck}
       ${wifiCheck}
-      set -- show --text ${lib.escapeShellArg cfg.text}
+      ${lib.optionalString (cfg.clock.colonIcon != null) ''
+        case "$(date +%S)" in
+          *[02468]) active="$active ${cfg.clock.colonIcon}" ;;
+        esac
+      ''}
+      set -- show --text "$(date +%H%M)"
       ${iconCase}
       ${fd6xx}/bin/fd6xx ${lib.escapeShellArgs transportArgs} "$@" || true
-    '';
+      sleep ${cfg.clock.interval}
+    done
+  '';
 in
 {
   # Afficheur de façade 7 segments à deux fils (FD650/FD655).
@@ -269,6 +288,29 @@ in
         '';
       };
     };
+
+    clock = {
+      enable = lib.mkEnableOption "horloge HH:MM sur l'afficheur (remplace le timer status)";
+
+      colonIcon = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = "colon";
+        description = ''
+          Icône de colonne à faire clignoter à 1 Hz (secondes paires), parmi
+          les noms de `layout.icons`. `null` désactive le clignotement ; dans
+          ce cas la colonne peut rester statique via `icons`.
+        '';
+      };
+
+      interval = lib.mkOption {
+        type = lib.types.str;
+        default = "1s";
+        description = ''
+          Période de la boucle. `1s` donne le clignotement à 1 Hz ; une valeur
+          plus grande ralentit le clignotement sans arrêter l'heure.
+        '';
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -291,17 +333,33 @@ in
       }
       {
         assertion =
-          !cfg.status.enable
+          !(cfg.status.enable || cfg.clock.enable)
           || cfg.status.ethernetIcon == null
           || builtins.hasAttr cfg.status.ethernetIcon cfg.layout.icons;
         message = "nixelec.frontPanel.status.ethernetIcon : icône absente de layout.icons.";
       }
       {
         assertion =
-          !cfg.status.enable
+          !(cfg.status.enable || cfg.clock.enable)
           || cfg.status.wifiIcon == null
           || builtins.hasAttr cfg.status.wifiIcon cfg.layout.icons;
         message = "nixelec.frontPanel.status.wifiIcon : icône absente de layout.icons.";
+      }
+      {
+        assertion = !cfg.clock.enable || cfg.layout.digits >= 4;
+        message = "nixelec.frontPanel.clock : l'horloge HHMM demande au moins 4 chiffres.";
+      }
+      {
+        assertion =
+          !cfg.clock.enable
+          || cfg.clock.colonIcon == null
+          || builtins.hasAttr cfg.clock.colonIcon cfg.layout.icons;
+        message = "nixelec.frontPanel.clock.colonIcon : icône absente de layout.icons.";
+      }
+      {
+        assertion =
+          !cfg.clock.enable || cfg.clock.colonIcon == null || !(lib.elem cfg.clock.colonIcon cfg.icons);
+        message = "nixelec.frontPanel.clock.colonIcon : ne pas mettre la colonne dans icons, elle clignote.";
       }
     ];
 
@@ -338,7 +396,25 @@ in
       '';
     };
 
-    systemd.services.front-panel-status = lib.mkIf cfg.status.enable {
+    systemd.services.front-panel-clock = lib.mkIf cfg.clock.enable {
+      description = "Horloge de l'afficheur façade";
+      wantedBy = [ "multi-user.target" ];
+      after = [ "front-panel.service" ];
+      wants = [ "front-panel.service" ];
+      path = [
+        pkgs.coreutils
+        pkgs.gnugrep
+        pkgs.iw
+      ];
+      serviceConfig = {
+        Type = "simple";
+        Restart = "always";
+        RestartSec = "2s";
+      };
+      script = clockScript;
+    };
+
+    systemd.services.front-panel-status = lib.mkIf (cfg.status.enable && !cfg.clock.enable) {
       description = "Icônes d'état de l'afficheur façade";
       wantedBy = [ "multi-user.target" ];
       after = [ "front-panel.service" ];
@@ -357,7 +433,7 @@ in
       script = statusScript;
     };
 
-    systemd.timers.front-panel-status = lib.mkIf cfg.status.enable {
+    systemd.timers.front-panel-status = lib.mkIf (cfg.status.enable && !cfg.clock.enable) {
       wantedBy = [ "timers.target" ];
       timerConfig = {
         OnBootSec = "20s";
