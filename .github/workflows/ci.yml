@@ -35,3 +35,9 @@ jobs:
       # Le selftest de fd6xx est dans le checkPhase de la dérivation.
       - name: Build fd6xx
         run: nix build -L .#fd6xx
+
+      # Le module front-panel doit rester évaluable en dehors de toute carte :
+      # c'est le seul gate qui attrape une option renommée ou un exemple cassé
+      # sans reconstruire une configuration NixOS complète.
+      - name: Eval front-panel example
+        run: nix build -L .#checks.x86_64-linux.eval-front-panel
