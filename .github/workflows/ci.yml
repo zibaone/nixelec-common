@@ -1,0 +1,37 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    name: Eval + format (x86_64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            max-jobs = 4
+
+      # La couche est un contrat : l'eval couvre les modules, les exemples
+      # et le formatage. Aucun secret, aucune entrée privée.
+      - name: Evaluate the flake
+        run: nix flake check --no-build -L
+
+      # Le selftest de fd6xx est dans le checkPhase de la dérivation.
+      - name: Build fd6xx
+        run: nix build -L .#fd6xx
