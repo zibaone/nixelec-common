@@ -81,7 +81,8 @@ let
     ${wifiCheck}
     set -- show --text ${lib.escapeShellArg cfg.text}
     ${iconCase}
-    ${fd6xx}/bin/fd6xx ${lib.escapeShellArgs transportArgs} "$@" || true
+    ${fd6xx}/bin/fd6xx ${lib.escapeShellArgs transportArgs} "$@" \
+      || echo "front-panel: fd6xx a échoué" >&2
   '';
 
   # Horloge : HHMM sur quatre chiffres, colon clignotant à 1 Hz (secondes
@@ -100,7 +101,11 @@ let
       ''}
       set -- show --text "$(date +%H%M)"
       ${iconCase}
-      ${fd6xx}/bin/fd6xx ${lib.escapeShellArgs transportArgs} "$@" || true
+      # Un échec doit se voir : sans ce message, une boucle qui n'écrit plus
+      # (lignes tenues par un fd6xx resté en fond, chip muet) ressemble à une
+      # dalle noire sans cause. Le service doit survivre, donc pas de `exit`.
+      ${fd6xx}/bin/fd6xx ${lib.escapeShellArgs transportArgs} "$@" \
+        || echo "front-panel: fd6xx a échoué" >&2
       sleep ${cfg.clock.interval}
     done
   '';

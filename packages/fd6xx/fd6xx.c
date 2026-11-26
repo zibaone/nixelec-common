@@ -677,7 +677,7 @@ int main(int argc, char **argv)
 		}
 		init_gpio(chip, clk, dat, push_pull);
 		write_cmd_data(CMD_CTRL,
-			       (((brightness + 1) & 7) << 4) | 0x01);
+			       (((brightness + 1) << 4) | 0x01));
 		write_frame(&f, base, stride);
 		return 0;
 	}
@@ -706,7 +706,7 @@ int main(int argc, char **argv)
 		}
 		init_gpio(chip, clk, dat, push_pull);
 		write_cmd_data(CMD_CTRL,
-			       (((brightness + 1) & 7) << 4) | 0x01);
+			       (((brightness + 1) << 4) | 0x01));
 		for (i = 0; i < npairs; i++)
 			write_cmd_data(pairs[i].addr, pairs[i].byte);
 		return 0;
@@ -738,7 +738,7 @@ int main(int argc, char **argv)
 		if (n == 0)
 			usage();
 		init_gpio(chip, clk, dat, push_pull);
-		write_cmd_data(CMD_CTRL, (((brightness + 1) & 7) << 4) | 0x01);
+		write_cmd_data(CMD_CTRL, (((brightness + 1) << 4) | 0x01));
 		write_burst(addr, data, n);
 		return 0;
 	}
@@ -758,7 +758,7 @@ int main(int argc, char **argv)
 		}
 		init_gpio(chip, clk, dat, push_pull);
 		write_cmd_data(CMD_CTRL,
-			       (((brightness + 1) & 7) << 4) | 0x01);
+			       (((brightness + 1) << 4) | 0x01));
 		scan_panel(base, stride, scan_addr, scan_delay_ms);
 		/* Le balayage laisse la dalle eteinte : on rend l'etat vide
 		 * explicitement, pour ne pas laisser un segment residuel. */
@@ -768,7 +768,7 @@ int main(int argc, char **argv)
 	}
 
 	init_gpio(chip, clk, dat, push_pull);
-	write_cmd_data(CMD_CTRL, (((brightness + 1) & 7) << 4) | 0x01);
+	write_cmd_data(CMD_CTRL, (((brightness + 1) << 4) | 0x01));
 
 	if (!strcmp(cmd, "write")) {
 		const char *text = (argi < argc) ? argv[argi] : "";
