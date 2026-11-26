@@ -148,6 +148,34 @@ static void write_cmd_data(unsigned cmd, unsigned data)
 	bb_stop();
 }
 
+/*
+ * Ecriture en bloc, mode « adresse incrementale » (vendor FD628) :
+ *   START 0x40 STOP                      -> mode d'ecriture incrementale
+ *   START (0xC0 | addr) octet... STOP    -> tete + N octets d'un seul tenant
+ * C'est la sequence de `FD628_WrDisp_AddrINC` (`aml_fd628.c`), avec ses
+ * constantes `FD628_ADDR_INC_DIGWR_CMD` (0x40) et `FD628_DIGADDR_WRCMD`
+ * (0xC0). Sert a sonder une dalle dont on ne connait pas le mode.
+ *
+ * Mesure du 2026-11-26 : n'a RIEN change sur la Transpeed (ni adresse par
+ * adresse, ni bloc). Sur cette carte le probleme n'est donc pas le mode
+ * d'ecriture mais le cablage : ni 267/268 (PI11/PI12) ni 226/227 (PH2/PH3,
+ * celles de la H96) ne pilotent quoi que ce soit, et le DT vendor ne declare
+ * aucun panneau. Conserve comme outil de sondage, pas comme chemin valide.
+ */
+static void write_burst(unsigned addr, const unsigned char *data, int n)
+{
+	int i;
+
+	bb_start();
+	bb_byte(0x40u);
+	bb_stop();
+	bb_start();
+	bb_byte(0xc0u | (addr & 0x3fu));
+	for (i = 0; i < n; i++)
+		bb_byte(data[i]);
+	bb_stop();
+}
+
 /* police 7 segments, DP G F E D C B A */
 static unsigned char glyph(char c)
 {
@@ -509,6 +537,11 @@ static void usage(void)
 		"  seg <hex>...      octets de segments bruts, par adresse\n"
 		"  raw <addr> <octet> [<addr> <octet>]...\n"
 		"                    ecriture brute, pour sonder une adresse\n"
+		"  burst <addr> <octet>...\n"
+		"                    bloc en mode incremental du vendor : commande\n"
+		"                    0x40 puis (0xC0|addr) et les octets d'un tenant.\n"
+		"                    Pour les dalles qui ignorent l'ecriture par\n"
+		"                    adresse (Transpeed).\n"
 		"  scan [--addr ADDR]\n"
 		"                    allume un bit a la fois et affiche l'adresse ;\n"
 		"                    sans --addr, balaye les cinq grilles\n"
@@ -677,6 +710,37 @@ int main(int argc, char **argv)
 			       (((brightness + 1) & 7) << 4) | 0x01);
 		for (i = 0; i < npairs; i++)
 			write_cmd_data(pairs[i].addr, pairs[i].byte);
+		return 0;
+	}
+
+	if (!strcmp(cmd, "burst")) {
+		unsigned addr;
+		unsigned char data[MAX_GRIDS + 1];
+		int n = 0;
+
+		if (argi >= argc || parse_byte(argv[argi++], &addr) < 0) {
+			fprintf(stderr, "fd6xx: burst attend ADDR OCTET...\n");
+			return 2;
+		}
+		while (argi < argc) {
+			unsigned v;
+
+			if (n >= (int)(MAX_GRIDS + 1)) {
+				fprintf(stderr, "fd6xx: burst limite a %d octets\n",
+					MAX_GRIDS + 1);
+				return 2;
+			}
+			if (parse_byte(argv[argi++], &v) < 0) {
+				fprintf(stderr, "fd6xx: burst attend des octets (0-255)\n");
+				return 2;
+			}
+			data[n++] = (unsigned char)v;
+		}
+		if (n == 0)
+			usage();
+		init_gpio(chip, clk, dat, push_pull);
+		write_cmd_data(CMD_CTRL, (((brightness + 1) & 7) << 4) | 0x01);
+		write_burst(addr, data, n);
 		return 0;
 	}
 
