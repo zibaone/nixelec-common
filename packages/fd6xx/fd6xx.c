@@ -156,11 +156,10 @@ static void write_cmd_data(unsigned cmd, unsigned data)
  * constantes `FD628_ADDR_INC_DIGWR_CMD` (0x40) et `FD628_DIGADDR_WRCMD`
  * (0xC0). Sert a sonder une dalle dont on ne connait pas le mode.
  *
- * Mesure du 2026-11-26 : n'a RIEN change sur la Transpeed (ni adresse par
- * adresse, ni bloc). Sur cette carte le probleme n'est donc pas le mode
- * d'ecriture mais le cablage : ni 267/268 (PI11/PI12) ni 226/227 (PH2/PH3,
- * celles de la H96) ne pilotent quoi que ce soit, et le DT vendor ne declare
- * aucun panneau. Conserve comme outil de sondage, pas comme chemin valide.
+ * Mesure du 2026-11-26 : la Transpeed n'obéit pas mieux au bloc qu'a l'ecriture
+ * par adresse — elle accepte des trames pendant ~2 min apres un cycle secteur,
+ * puis n'en accepte plus aucune (dalle partiellement defaillante, cf.
+ * nixelec-sunxi64/docs/affichage-facade.md). Conserve comme outil de sondage.
  */
 static void write_burst(unsigned addr, const unsigned char *data, int n)
 {
