@@ -25,8 +25,15 @@ in
       description = ''
         Action of the physical power button, through systemd-logind
         (`HandlePowerKey`). NixOS defaults to `poweroff`, which powers the box
-        off: no wake source (IR, WoL, RTC) can then bring it back. Set it to
-        `suspend` on a board whose wake sources are wired and tested.
+        off: no wake source (IR, WoL, RTC) can then bring it back.
+
+        Measured pitfall on H96 Max H618 (2026-11-27): when the only "power"
+        key is the IR remote's `KEY_POWER`, the press that wakes the box is
+        re-delivered to logind ~6 s after resume. With `suspend`, the box
+        therefore suspends itself again right after every wake (wake IRQ 300
+        at 19:33:35, `Power key pressed short`/`Suspending...` at 19:33:41).
+        Prefer `ignore` on such a board and let Kodi (or another policy)
+        handle the key while awake; the kernel wake path still works.
       '';
     };
 
