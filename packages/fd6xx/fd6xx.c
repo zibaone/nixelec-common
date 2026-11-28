@@ -55,6 +55,10 @@
  * Les valeurs derivees de la luminosite sont ignorees — une dalle eteinte le
  * reste, sans erreur d'ecriture. Mesure du 2026-11-27 sur H96 #2. */
 #define CTRL_ON 0x01
+/* Garde-fou : ne pas « ameliorer » ce byte en y remettant la luminosite. La
+ * puce du H96 ignore 0x41/0x81 (mesure du 2026-11-27) — une dalle eteinte ne
+ * se rallume alors plus, sans aucune erreur d'ecriture. */
+_Static_assert(CTRL_ON == 0x01, "CTRL_ON doit rester le byte vendor 0x01");
 #define DEFAULT_BASE 0x68
 #define DEFAULT_STRIDE 2
 
