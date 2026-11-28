@@ -89,18 +89,23 @@ in
         ip link set eth0 up 2>/dev/null || true
       ''
       + lib.optionalString cfg.realignWifi ''
-        # Le SDIO de l'AIC8800 ne se ré-énumère pas après s2idle : sans ce
-        # rechargement, wpa_supplicant boucle sur SCAN-FAILED (-EBUSY) et la
-        # carte WiFi-only reste sans réseau (mesuré 2026-11-28 sur H96).
-        ${pkgs.kmod}/bin/modprobe -r aic8800_fdrv aic8800_bsp 2>/dev/null || true
-        ${pkgs.kmod}/bin/modprobe aic8800_bsp 2>/dev/null || true
-        ${pkgs.kmod}/bin/modprobe aic8800_fdrv 2>/dev/null || true
-        # Recharger le pilote ne suffit pas : wpa_supplicant garde le wiphy
-        # d'avant la veille et ses scans échouent (-ENOENT). Le redémarrer le
-        # réassocie aussitôt (mesuré). `--no-block` : on est dans le preStop de
-        # sleep-actions, attendre un job depuis la transaction de reprise
-        # risquerait un blocage.
-        ${config.systemd.package}/bin/systemctl --no-block restart wpa-supplicant-wlan0 2>/dev/null || true
+        # Le rechargement se fait dans une unité transitoire : la transaction de
+        # veille ne doit jamais attendre le SDIO. Mesuré 2026-11-28 sur H96 : un
+        # hook qui bloque laisse logind en « suspend in progress » et refuse
+        # toutes les veilles suivantes (« Action suspend already in progress »),
+        # et le rmmod en cours fait traîner la phase device du suspend suivant
+        # (46 s et 77 s observés). wpa_supplicant est donc arrêté avant le
+        # rmmod, chaque étape est bornée par `timeout`, et l'ensemble tourne
+        # hors de la transaction (systemd-run).
+        ${config.systemd.package}/bin/systemd-run --no-block --collect \
+          --unit=havenos-wifi-realign --property=RuntimeMaxSec=120 \
+          ${pkgs.bash}/bin/bash -c '
+            ${config.systemd.package}/bin/systemctl stop wpa-supplicant-wlan0 || true
+            ${pkgs.coreutils}/bin/timeout 20 ${pkgs.kmod}/bin/modprobe -r aic8800_fdrv aic8800_bsp || true
+            ${pkgs.coreutils}/bin/timeout 10 ${pkgs.kmod}/bin/modprobe aic8800_bsp || true
+            ${pkgs.coreutils}/bin/timeout 10 ${pkgs.kmod}/bin/modprobe aic8800_fdrv || true
+            ${config.systemd.package}/bin/systemctl --no-block start wpa-supplicant-wlan0 || true
+          ' || true
       '';
   };
 }
