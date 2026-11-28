@@ -13,7 +13,10 @@
 //   - START, octet de commande, 8 bits MSB d'abord, puis un **9e top
 //     d'horloge** (la puce ne tire pas DAT : le 9e top est obligatoire quand
 //     meme, sans lui des octets sont perdus — mesure), STOP ;
-//   - commande 0x48 = controle, donnee = (niveau de luminosite + 1) << 4 | 0x01 ;
+//   - commande 0x48 = controle ; la donnee **0x01** est le « display on » du
+//     vendor. Les octets derives de la luminosite (`(b+1)<<4 | 1`) sont
+//     **ignores** par la puce du H96 (mesure du 2026-11-27 : dalle restee
+//     noire malgre des ecritures qui sortaient 0, `0x48 0x01` la rallume) ;
 //   - adresses de donnees 0x68, 0x6A, 0x6C, 0x6E, 0x70 ; l'adresse 0x68 est
 //     le chiffre **le plus a droite** (mesure sur la H96) ;
 //   - l'octet d'icones est 0x66 (commande 0x33 * 2, registre « icon-set ») :
@@ -48,6 +51,10 @@
 #define MAX_BITOPS 32
 #define MAX_EXTRAS 16
 #define CMD_CTRL 0x48
+/* Seul byte de controle honore par la puce (vendor : `0x48` puis `0x01`).
+ * Les valeurs derivees de la luminosite sont ignorees — une dalle eteinte le
+ * reste, sans erreur d'ecriture. Mesure du 2026-11-27 sur H96 #2. */
+#define CTRL_ON 0x01
 #define DEFAULT_BASE 0x68
 #define DEFAULT_STRIDE 2
 
@@ -517,7 +524,8 @@ static void usage(void)
 		"  --chip DEV        gpiochip (defaut /dev/gpiochip1)\n"
 		"  --clk N           GPIO global de l'horloge (defaut 226)\n"
 		"  --dat N           GPIO global des donnees (defaut 227)\n"
-		"  --brightness 0-7  luminosite (defaut 3)\n"
+		"  --brightness 0-7  accepte mais **sans effet** sur la puce H96\n"
+		"                    (seul 0x48 0x01 est honore ; mesure du 27/11)\n"
 		"  --base N          adresse de la premiere grille (defaut 0x68)\n"
 		"  --stride N        pas entre deux grilles (defaut 2)\n"
 		"  --digits 1-5      nombre de positions du profil (defaut 5)\n"
@@ -615,6 +623,12 @@ int main(int argc, char **argv)
 	if (argi >= argc)
 		usage();
 
+	/* L'option reste acceptee (les scripts la passent), mais la puce
+	 * n'honore que le byte vendor 0x01 : la luminosite n'est pas reglable
+	 * par cette commande (mesure du 2026-11-27, valeurs 0x01 a 0x0f et
+	 * 0x71 visuellement identiques). */
+	(void)brightness;
+
 	cmd = argv[argi++];
 
 	if (!strcmp(cmd, "selftest"))
@@ -676,8 +690,7 @@ int main(int argc, char **argv)
 			return 0;
 		}
 		init_gpio(chip, clk, dat, push_pull);
-		write_cmd_data(CMD_CTRL,
-			       (((brightness + 1) << 4) | 0x01));
+		write_cmd_data(CMD_CTRL, CTRL_ON);
 		write_frame(&f, base, stride);
 		return 0;
 	}
@@ -705,8 +718,7 @@ int main(int argc, char **argv)
 			npairs++;
 		}
 		init_gpio(chip, clk, dat, push_pull);
-		write_cmd_data(CMD_CTRL,
-			       (((brightness + 1) << 4) | 0x01));
+		write_cmd_data(CMD_CTRL, CTRL_ON);
 		for (i = 0; i < npairs; i++)
 			write_cmd_data(pairs[i].addr, pairs[i].byte);
 		return 0;
@@ -738,7 +750,7 @@ int main(int argc, char **argv)
 		if (n == 0)
 			usage();
 		init_gpio(chip, clk, dat, push_pull);
-		write_cmd_data(CMD_CTRL, (((brightness + 1) << 4) | 0x01));
+		write_cmd_data(CMD_CTRL, CTRL_ON);
 		write_burst(addr, data, n);
 		return 0;
 	}
@@ -757,8 +769,7 @@ int main(int argc, char **argv)
 			scan_addr = (long)a;
 		}
 		init_gpio(chip, clk, dat, push_pull);
-		write_cmd_data(CMD_CTRL,
-			       (((brightness + 1) << 4) | 0x01));
+		write_cmd_data(CMD_CTRL, CTRL_ON);
 		scan_panel(base, stride, scan_addr, scan_delay_ms);
 		/* Le balayage laisse la dalle eteinte : on rend l'etat vide
 		 * explicitement, pour ne pas laisser un segment residuel. */
@@ -768,7 +779,7 @@ int main(int argc, char **argv)
 	}
 
 	init_gpio(chip, clk, dat, push_pull);
-	write_cmd_data(CMD_CTRL, (((brightness + 1) << 4) | 0x01));
+	write_cmd_data(CMD_CTRL, CTRL_ON);
 
 	if (!strcmp(cmd, "write")) {
 		const char *text = (argi < argc) ? argv[argi] : "";
