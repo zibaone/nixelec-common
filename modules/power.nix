@@ -5,6 +5,7 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 
@@ -61,6 +62,19 @@ in
         down.
       '';
     };
+
+    realignWifi = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Reload the AIC8800 SDIO driver after a resume. Measured 2026-11-28 on
+        H96 Max H618: after s2idle the interface never re-associates —
+        wpa_supplicant loops on `CTRL-EVENT-SCAN-FAILED ret=-16` (EBUSY), and
+        neither `ip link down/up` nor a wpa_supplicant restart clears it. Only
+        `rmmod`/`modprobe` of `aic8800_fdrv` + `aic8800_bsp` re-associates.
+        Required on boards whose only network path is WiFi (kiosk H96).
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -69,9 +83,18 @@ in
     boot.kernelParams = [ "mem_sleep_default=${cfg.suspend.mode}" ];
 
     # Hook unique du socle : après reprise, réarmer le lien si demandé.
-    powerManagement.resumeCommands = lib.optionalString cfg.realignEthernet ''
-      ip link set eth0 down 2>/dev/null || true
-      ip link set eth0 up 2>/dev/null || true
-    '';
+    powerManagement.resumeCommands =
+      lib.optionalString cfg.realignEthernet ''
+        ip link set eth0 down 2>/dev/null || true
+        ip link set eth0 up 2>/dev/null || true
+      ''
+      + lib.optionalString cfg.realignWifi ''
+        # Le SDIO de l'AIC8800 ne se ré-énumère pas après s2idle : sans ce
+        # rechargement, wpa_supplicant boucle sur SCAN-FAILED (-EBUSY) et la
+        # carte WiFi-only reste sans réseau (mesuré 2026-11-28 sur H96).
+        ${pkgs.kmod}/bin/modprobe -r aic8800_fdrv aic8800_bsp 2>/dev/null || true
+        ${pkgs.kmod}/bin/modprobe aic8800_bsp 2>/dev/null || true
+        ${pkgs.kmod}/bin/modprobe aic8800_fdrv 2>/dev/null || true
+      '';
   };
 }
