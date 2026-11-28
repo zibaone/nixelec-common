@@ -95,6 +95,12 @@ in
         ${pkgs.kmod}/bin/modprobe -r aic8800_fdrv aic8800_bsp 2>/dev/null || true
         ${pkgs.kmod}/bin/modprobe aic8800_bsp 2>/dev/null || true
         ${pkgs.kmod}/bin/modprobe aic8800_fdrv 2>/dev/null || true
+        # Recharger le pilote ne suffit pas : wpa_supplicant garde le wiphy
+        # d'avant la veille et ses scans échouent (-ENOENT). Le redémarrer le
+        # réassocie aussitôt (mesuré). `--no-block` : on est dans le preStop de
+        # sleep-actions, attendre un job depuis la transaction de reprise
+        # risquerait un blocage.
+        ${config.systemd.package}/bin/systemctl --no-block restart wpa-supplicant-wlan0 2>/dev/null || true
       '';
   };
 }
